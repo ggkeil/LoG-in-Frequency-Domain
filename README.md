@@ -1,1 +1,1 @@
-# LoG-in-Frequency-Domain
+# Laplacian of Gaussian in the Frequency Domain
