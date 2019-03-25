@@ -20,6 +20,7 @@ def padImage(image):
                                 # P = 2M and Q = 2N
     return image
     
+# multiply by (-1)^(x+y)
 def centerImage(image):
     result = np.zeros((image.shape[0], image.shape[1]))
     for x in range(0, image.shape[0]):
@@ -30,7 +31,15 @@ def centerImage(image):
 
 def forwardTransform(image):
     ftimage = np.fft.fft2(image)
+    ftimage = np.fft.fftshift(ftimage) # to make sure fourier is centered
     return np.abs(ftimage)
+
+def gaussiankernel(iH, iW, sigma):
+    cy, cx = iH / 2, iW / 2
+    x = np.linspace(0, iH, iH)
+    y = np.linspace(0, iW, iW)
+    X, Y = np.meshgrid(x, y)
+    kernel = 
     
 def imagefilter(image, kernel):
     output = image * kernel
@@ -40,10 +49,10 @@ original = cv2.imread("woman.png")
 gray = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
 padded = padImage(gray)
 centered = centerImage(padded)
-fourierimage = forwardTransform(centered)
+fourier = forwardTransform(centered)
 
 cv2.imshow("Padded Image", padded)
 cv2.imshow("Centered", centered)
-cv2.imshow("Fourier of Centered and Padded Image", fourierimage)
+cv2.imshow("Fourier of Centered and Padded Image", fourier)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
