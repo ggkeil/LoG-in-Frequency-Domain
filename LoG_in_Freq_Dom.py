@@ -7,7 +7,7 @@ Created on Fri Mar 22 20:02:42 2019
 
 import numpy as np
 import cv2
-import cmath
+import matplotlib.pyplot as plt
 
 def padImage(image):
     (iH, iW) = image.shape[:2]
@@ -24,23 +24,13 @@ def centerImage(image):
     result = np.zeros((image.shape[0], image.shape[1]))
     for x in range(0, image.shape[0]):
         for y in range(0, image.shape[1]):
-            result[x, y] = image[x, y] * ((-1)**(x + y))
+            result[x, y] = image[x, y] * pow(-1, x + y)
     
     return result
 
 def forwardTransform(image):
-    (M, N) = image.shape[:2]
-    fourier = np.zeros((M, N))
-    u = 0
-    v = 0
-    sum = 0
-    for u in range(M):
-        for v in range(N):
-            sum = 0
-            for x in range(M):
-                for y in range(N):
-                    sum += image[x, y]*cmath.exp(-1j*2*cmath.pi*((float(u*x) / M) + (float(v*y) / N)))
-            fourier[u, v] = sum
+    ftimage = np.fft.fft2(image)
+    return np.abs(ftimage)
     
 def imagefilter(image, kernel):
     output = image * kernel
@@ -56,4 +46,4 @@ cv2.imshow("Padded Image", padded)
 cv2.imshow("Centered", centered)
 cv2.imshow("Fourier of Centered and Padded Image", fourierimage)
 cv2.waitKey(0)
-cv2.desroyAllWindows()
+cv2.destroyAllWindows()
