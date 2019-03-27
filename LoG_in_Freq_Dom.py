@@ -20,41 +20,19 @@ def padImage(image):
                                 # P = 2M and Q = 2N
     return image
     
-def normalizeImage(image):
-    (iH, iW) = image.shape[:2]
-    for x in range(0, iH):
-        for y in range(0, iW):
-            image[x, y] = image[x, y] / 255
-    
+def normalize(image):
+    image = image // np.amax(image)
     return image
-
-# shows the magnitude spectrum of the image
-def plotMagnitudeSpectrum(image):
-    dft = cv2.dft(np.float32(image), flags = cv2.DFT_COMPLEX_OUTPUT)
-    dft_shift = np.fft.fftshift(dft)
     
-    magnitude_spectrum = 20*np.log(cv2.magnitude(dft_shift[:,:,0], dft_shift[:,:,1]))
-    
-    return magnitude_spectrum
-    
-# Bring the image back
-def backwardTransform(image):
-    dft = cv2.dft(np.float32(image),flags = cv2.DFT_COMPLEX_OUTPUT)
-    dft_shift = np.fft.fftshift(dft)
-    
-    rows, cols = image.shape
-    crow,ccol = rows/2 , cols/2
-    
-    # create a mask first, center square is 1, remaining all zeros
-    mask = np.zeros((rows,cols,2),np.uint8)
-    mask[crow-30:crow+30, ccol-30:ccol+30] = 1
-    
-    # apply mask and inverse DFT
-    fshift = dft_shift*mask
-    f_ishift = np.fft.ifftshift(fshift)
-    img_back = cv2.idft(f_ishift)
-    img_back = cv2.magnitude(img_back[:,:,0],img_back[:,:,1])
-    return img_back
+# multiply by (-1)^(x+y)
+def center(image):
+    x, y = image.shape[:2]
+    center = np.zeros((x, y))
+    for i in range(x):
+        for j in range(y):
+            center[i, j] = (-1)**(i+j)
+    centeredImage = image * center
+    return centeredImage
 
 def gaussiankernel(image, sigma):
     iH = image.shape[0]
@@ -71,56 +49,84 @@ def laplaciankernel(image):
     iH = image.shape[0]
     iW = image.shape[1]
     cu, cv = iH // 2, iW // 2
-    kernel = np.zeros(iH, iW)
+    kernel = np.zeros((iH, iW))
     for u in range(0, iH):
         for v in range(0, iW):
             D = np.sqrt((u - cu)**2 + (v - cv)**2)
-            kernel[u, v] = -4*((np.pi)**2)*(D**2)
+            kernel[u, v] = (-4)*((np.pi)**2)*(D**2)
+    kernel = kernel // np.amin(kernel)
     return kernel
     
-def multiply(image, kernel):
-    output = np.multiply(image, kernel)
+def multiply(fft, kernel1, kernel2):
+    output = fft*kernel1*kernel2
     return output
 
-# Inverse Fourier to get image back
-def showChangedImage(image, kernel):
-    ftimage = np.fft.fft2(image)
-    ftimage = np.fft.fftshift(ftimage)
-    ftimagep = multiply(ftimage, kernel)
-    imagep = np.fft.ifft2(ftimagep)
-    return np.abs(imagep)
+def multiply2(fft, kernel):
+    output = fft * kernel
+    return output
 
-# multiply by (-1)^(x+y)
-def unCenterImage(image):
-    result = np.zeros((image.shape[0], image.shape[1]))
-    for x in range(0, image.shape[0]):
-        for y in range(0, image.shape[1]):
-            result[x, y] = image[x, y] * pow(-1, x + y)
+def calculateFFT(image):
+    ftimage = np.fft.fft2(image)
+    return ftimage
+
+# calculate IFFT after LoG
+def calculateIFFT(image):
+    ifft = np.abs(np.fft.ifft2(image))
+    return ifft
     
+# LoG given the fft of the image
+def LoG(fft, sigma):
+    gaussianKernel = gaussiankernel(fft, sigma) # first obtain the gaussian kernel calculated by this function
+    laplacianKernel = laplaciankernel(fft) # then obtain the laplacian kernel calculated by this function
+    result = multiply(fft, gaussianKernel, laplacianKernel) # multiply the fourier transform by the gaussian and laplacian kernel
     return result
 
-def unPadImage(paddedImage):
-    (iH, iW) = paddedImage.shape[:2]
-    unPaddedImage = paddedImage[0 : int(iH / 2), 0 : int(iW / 2)]
+def unPad(paddedImage):
+    (iH, iW) = paddedImage.shape[:2] # get padded image dimensions
+    unPaddedImage = paddedImage[0 : iH // 2, 0 : iW // 2] # slicing off the black areas that surround the image
     return unPaddedImage
 
-original = cv2.imread("woman.png")
-gray = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
-padded = padImage(gray)
-magSpecPlot = plotMagnitudeSpectrum(padded)
-sigma = 25
-gaussianOfFourierPlot = multiply(magSpecPlot, gaussiankernel(magSpecPlot, sigma))
-changed_image = showChangedImage(padded, gaussiankernel(padded, sigma))
-unpadded_changed = unPadImage(changed_image)
+def sharpen(image, unpadded, c):
+    sharpened = image + (c * unpadded)
+    return sharpened
 
-plt.subplot(231),plt.imshow(padded, cmap = 'gray')
-plt.title('Input Padded Image'), plt.xticks([]), plt.yticks([])
-plt.subplot(232),plt.imshow(magSpecPlot, cmap = 'gray')
-plt.title('Magnitude Spectrum of Padded Image'), plt.xticks([]), plt.yticks([])
-plt.subplot(233),plt.imshow(gaussianOfFourierPlot, cmap = 'gray')
-plt.title('Gaussian Magnitude Spectrum of Padded Image'), plt.xticks([]), plt.yticks([])
-plt.subplot(234),plt.imshow(changed_image, cmap = 'gray')
-plt.title('Image Came Back'), plt.xticks([]), plt.yticks([])
-plt.subplot(235),plt.imshow(unpadded_changed, cmap = 'gray')
-plt.title('Unpadded'), plt.xticks([]), plt.yticks([])
+original = cv2.imread("woman.png") # read in image
+
+gray = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY) # get grayscale of image
+
+padded = padImage(gray) # pad the image
+
+normalized = normalize(padded) # normalize the padded and centered image
+
+centered = center(normalized) # center the padded image
+
+fft = calculateFFT(centered) # calculate the fourier transform of the centered and normalized image
+
+gaussianFourier = multiply2(fft, gaussiankernel(fft, 25))
+
+gaussianIFFT = calculateIFFT(gaussianFourier)
+
+unCenteredGaussian = center(gaussianIFFT)
+
+unPaddedGaussian = unPad(unCenteredGaussian)
+
+LoG = LoG(fft, 25)
+
+ifft = calculateIFFT(LoG)
+
+unCenter = center(ifft)
+
+unPadded = unPad(unCenter)
+
+sharpened = sharpen(gray, unPadded, 3)
+
+plt.subplot(121), plt.imshow(gray, cmap = 'gray')
+plt.title('Input Image'), plt.xticks([]), plt.yticks([])
+
+#plt.subplot(222), plt.imshow(unPaddedGaussian, cmap = 'gray')
+#plt.title('Gaussian Image'), plt.xticks([]), plt.yticks([])
+
+plt.subplot(122), plt.imshow(sharpened, cmap = 'gray')
+plt.title('Sharpened Image'), plt.xticks([]), plt.yticks([])
+
 plt.show()
