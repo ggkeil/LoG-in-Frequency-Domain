@@ -66,11 +66,12 @@ def multiply3(fft, kernel1, kernel2):
     first = np.multiply(fft, kernel1)
     output = np.multiply(first, kernel2)
     return output
-
+# used to multiply a fourier image by a single kernel
 def multiply2(fft, kernel):
     output = fft * kernel
     return output
 
+# find the fourier of the image
 def calculateFFT(image):
     ftimage = np.fft.fft2(image)
     return ftimage
