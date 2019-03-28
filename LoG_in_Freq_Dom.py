@@ -105,7 +105,7 @@ def sharpen(image, unpadded, c):
     sharpened = image + (c * unpadded)
     return sharpened
 
-original = cv2.imread("woman.png") # read in image
+original = cv2.imread("CameraMan.png") # read in image
 
 gray = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY) # get grayscale of image
 
