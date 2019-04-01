@@ -66,6 +66,7 @@ def multiply3(fft, kernel1, kernel2):
     first = np.multiply(fft, kernel1)
     output = np.multiply(first, kernel2)
     return output
+
 # used to multiply a fourier image by a single kernel
 def multiply2(fft, kernel):
     output = fft * kernel
@@ -97,11 +98,13 @@ def LoG(fft, sigma):
     result = multiply3(fft, gaussianKernel, laplacianKernel) # multiply the fourier transform by the gaussian and laplacian kernel
     return result
 
+# take off the padding at the end
 def unPad(paddedImage):
     (iH, iW) = paddedImage.shape[:2] # get padded image dimensions
     unPaddedImage = paddedImage[0 : iH // 2, 0 : iW // 2] # slicing off the black areas that surround the image
     return unPaddedImage
 
+# the parameter c is used to create a sharper image
 def sharpen(image, unpadded, c):
     sharpened = image + (c * unpadded)
     return sharpened
